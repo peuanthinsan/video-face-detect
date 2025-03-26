@@ -1,0 +1,11 @@
+version: '3.9'
+
+services:
+  video-intel-api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/video-face-detect-7378800ee012.json
+    volumes:
+      - ./video-face-detect-7378800ee012.json:/app/video-face-detect-7378800ee012.json
