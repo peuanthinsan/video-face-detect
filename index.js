@@ -4,40 +4,47 @@ const video = require('@google-cloud/video-intelligence').v1;
 const app = express();
 app.use(express.json());
 
-app.post('/analyze', async (req, res) => {
+app.post('/face-detection', async (req, res) => {
   const { gcsUri } = req.body;
-  if (!gcsUri) {
-    return res.status(400).send({ error: 'Missing gcsUri in request body' });
-  }
+  if (!gcsUri) return res.status(400).send({ error: 'Missing gcsUri in request body' });
 
   const client = new video.VideoIntelligenceServiceClient();
 
-  try {
-    const request = {
-      inputUri: gcsUri,
-      features: ['LABEL_DETECTION'],
-    };
+  const request = {
+    inputUri: gcsUri,
+    features: ['FACE_DETECTION'],
+    videoContext: {
+      faceDetectionConfig: {
+        includeBoundingBoxes: true,
+        includeAttributes: true,
+      },
+    },
+  };
 
+  try {
     const [operation] = await client.annotateVideo(request);
     const [response] = await operation.promise();
 
-    const labels = response.annotationResults[0].segmentLabelAnnotations.map(label => ({
-      description: label.entity.description,
-      segments: label.segments.map(segment => ({
-        startTime: (segment.segment.startTimeOffset.seconds || 0) + (segment.segment.startTimeOffset.nanos || 0) / 1e9,
-        endTime: (segment.segment.endTimeOffset.seconds || 0) + (segment.segment.endTimeOffset.nanos || 0) / 1e9,
-        confidence: segment.confidence,
+    const faceAnnotations = response.annotationResults[0].faceDetectionAnnotations;
+
+    const results = faceAnnotations.map((face, index) => ({
+      faceIndex: index,
+      segments: face.tracks.map(track => ({
+        startTime: (track.segment.startTimeOffset.seconds || 0) + (track.segment.startTimeOffset.nanos || 0) / 1e9,
+        endTime: (track.segment.endTimeOffset.seconds || 0) + (track.segment.endTimeOffset.nanos || 0) / 1e9,
+        confidence: track.confidence,
+        boundingBox: track.timestampedObjects[0]?.normalizedBoundingBox || null
       })),
     }));
 
-    res.send({ labels });
-  } catch (err) {
-    console.error('Video API error:', err);
-    res.status(500).send({ error: 'Video analysis failed', details: err.message });
+    res.send({ faces: results });
+  } catch (error) {
+    console.error('Face Detection Error:', error);
+    res.status(500).send({ error: 'Face detection failed', details: error.message });
   }
 });
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Face detection server running on port ${PORT}`);
 });
