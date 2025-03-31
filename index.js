@@ -25,17 +25,7 @@ app.post('/face-detection', async (req, res) => {
     const [operation] = await client.annotateVideo(request);
     const [response] = await operation.promise();
 
-    const faceAnnotations = response.annotationResults[0].faceDetectionAnnotations;
-
-    const results = faceAnnotations.map((face, index) => ({
-      faceIndex: index,
-      segments: face.tracks.map(track => ({
-        startTime: (track.segment.startTimeOffset.seconds || 0) + (track.segment.startTimeOffset.nanos || 0) / 1e9,
-        endTime: (track.segment.endTimeOffset.seconds || 0) + (track.segment.endTimeOffset.nanos || 0) / 1e9,
-        confidence: track.confidence,
-        timeStampedObjects: track.timestampedObjects,
-      })),
-    }));
+    const results = response;
 
     res.send({ faces: results });
   } catch (error) {
